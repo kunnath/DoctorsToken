@@ -81,6 +81,17 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  oneHourReminderSent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  fifteenMinReminderSent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  reminderSentAt: {
+    type: DataTypes.DATE,
+  },
 }, {
   timestamps: true,
   hooks: {

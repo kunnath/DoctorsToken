@@ -10,6 +10,7 @@ const appointmentRoutes = require('./routes/appointments');
 const doctorRoutes = require('./routes/doctors');
 const hospitalRoutes = require('./routes/hospitals');
 const gpsRoutes = require('./routes/gps');
+const adminRoutes = require('./routes/admin');
 
 // Import scheduler
 require('./services/scheduler');
@@ -67,12 +68,18 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// Rate limiting (only in production)
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+} else {
+  console.log('Rate limiting disabled in development mode');
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -84,6 +91,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/gps', gpsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

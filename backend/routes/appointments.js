@@ -247,7 +247,7 @@ router.patch('/:appointmentId/status',
 router.patch('/:appointmentId/cancel', authMiddleware, async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const { reason } = req.body;
+    const { reason, token } = req.body;
 
     const appointment = await Appointment.findByPk(appointmentId, {
       include: [
@@ -265,10 +265,11 @@ router.patch('/:appointmentId/cancel', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    // Check if user can cancel this appointment
+    // Check if user can cancel this appointment or has valid token
     const canCancel = 
       (req.user.role === 'patient' && appointment.patientId === req.user.id) ||
-      (req.user.role === 'doctor' && appointment.doctor.userId === req.user.id);
+      (req.user.role === 'doctor' && appointment.doctor.userId === req.user.id) ||
+      (token && appointment.appointmentToken === token);
 
     if (!canCancel) {
       return res.status(403).json({ message: 'You can only cancel your own appointments' });
@@ -284,12 +285,139 @@ router.patch('/:appointmentId/cancel', authMiddleware, async (req, res) => {
       notes: reason || 'Cancelled by user'
     });
 
+    // Send notification emails
+    try {
+      // Send confirmation to patient
+      await emailService.sendCancellationConfirmationToPatient(
+        appointment.patient.email,
+        appointment.patient.name,
+        appointment.doctor.user.name,
+        appointment.hospital.name,
+        appointment.appointmentDate,
+        appointment.appointmentTime,
+        appointment.appointmentToken
+      );
+
+      // Send notification to doctor
+      await emailService.sendCancellationNotificationToDoctor(
+        appointment.doctor.user.email,
+        appointment.doctor.user.name,
+        appointment.patient.name,
+        appointment.appointmentDate,
+        appointment.appointmentTime,
+        appointment.appointmentToken,
+        reason || 'No reason provided',
+        req.user.role === 'patient' ? 'Patient' : 'Doctor'
+      );
+    } catch (emailError) {
+      console.error('Failed to send cancellation emails:', emailError);
+    }
+
     res.json({
       message: 'Appointment cancelled successfully',
       appointment
     });
   } catch (error) {
     console.error('Appointment cancellation error:', error);
+    res.status(500).json({ message: 'Server error cancelling appointment' });
+  }
+});
+
+// Cancel appointment via public link (no auth required)
+router.patch('/:appointmentId/cancel-public', async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { token, reason } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Appointment token is required' });
+    }
+
+    const appointment = await Appointment.findByPk(appointmentId, {
+      include: [
+        { model: User, as: 'patient' },
+        { 
+          model: Doctor, 
+          as: 'doctor',
+          include: [{ model: User, as: 'user' }]
+        },
+        { model: Hospital, as: 'hospital' }
+      ]
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Verify token
+    if (appointment.appointmentToken !== token) {
+      return res.status(403).json({ message: 'Invalid appointment token' });
+    }
+
+    if (!['pending', 'approved'].includes(appointment.status)) {
+      return res.status(400).json({ message: 'This appointment cannot be cancelled' });
+    }
+
+    // Check if cancellation is within allowed time (at least 15 minutes before appointment)
+    const appointmentDateTime = new Date(`${appointment.appointmentDate}T${appointment.appointmentTime}`);
+    const now = new Date();
+    const timeDifference = appointmentDateTime.getTime() - now.getTime();
+    const minutesUntilAppointment = timeDifference / (1000 * 60);
+
+    if (minutesUntilAppointment < 15) {
+      return res.status(400).json({ 
+        message: 'Cannot cancel appointment less than 15 minutes before the scheduled time. Please call the hospital directly.' 
+      });
+    }
+
+    // Update appointment
+    await appointment.update({
+      status: 'cancelled',
+      notes: reason || 'Cancelled by patient via email link'
+    });
+
+    // Send notification emails
+    try {
+      // Send confirmation to patient
+      await emailService.sendCancellationConfirmationToPatient(
+        appointment.patient.email,
+        appointment.patient.name,
+        appointment.doctor.user.name,
+        appointment.hospital.name,
+        appointment.appointmentDate,
+        appointment.appointmentTime,
+        appointment.appointmentToken
+      );
+
+      // Send notification to doctor
+      await emailService.sendCancellationNotificationToDoctor(
+        appointment.doctor.user.email,
+        appointment.doctor.user.name,
+        appointment.patient.name,
+        appointment.appointmentDate,
+        appointment.appointmentTime,
+        appointment.appointmentToken,
+        reason || 'No reason provided',
+        'Patient (via email)'
+      );
+    } catch (emailError) {
+      console.error('Failed to send cancellation emails:', emailError);
+    }
+
+    res.json({
+      message: 'Appointment cancelled successfully',
+      appointment: {
+        id: appointment.id,
+        status: appointment.status,
+        patientName: appointment.patient.name,
+        doctorName: appointment.doctor.user.name,
+        hospitalName: appointment.hospital.name,
+        appointmentDate: appointment.appointmentDate,
+        appointmentTime: appointment.appointmentTime,
+      }
+    });
+  } catch (error) {
+    console.error('Cancel appointment via public link error:', error);
     res.status(500).json({ message: 'Server error cancelling appointment' });
   }
 });

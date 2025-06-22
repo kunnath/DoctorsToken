@@ -5,6 +5,107 @@ const emailService = require('./emailService');
 
 console.log('Scheduler initialized');
 
+// Run every 5 minutes to check for appointment reminders
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    console.log('Running appointment reminder check...');
+    
+    const now = new Date();
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+    const fifteenMinFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+    
+    // Find approved appointments that need reminders
+    const upcomingAppointments = await Appointment.findAll({
+      where: {
+        status: 'approved',
+        appointmentDate: {
+          [Op.gte]: now.toISOString().split('T')[0] // Today or future dates
+        }
+      },
+      include: [
+        { model: User, as: 'patient' },
+        { 
+          model: Doctor, 
+          as: 'doctor',
+          include: [{ model: User, as: 'user' }]
+        },
+        { model: Hospital, as: 'hospital' }
+      ]
+    });
+
+    for (const appointment of upcomingAppointments) {
+      const appointmentDateTime = new Date(`${appointment.appointmentDate}T${appointment.appointmentTime}`);
+      
+      // Generate cancellation URL
+      const cancelUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/cancel-appointment/${appointment.id}?token=${appointment.appointmentToken}`;
+      
+      // Send 1-hour reminder
+      if (!appointment.oneHourReminderSent && 
+          appointmentDateTime <= oneHourFromNow && 
+          appointmentDateTime > fifteenMinFromNow) {
+        
+        console.log(`Sending 1-hour reminder for appointment ${appointment.id}`);
+        
+        try {
+          await emailService.sendAppointmentReminderEmail(
+            appointment.patient.email,
+            appointment.patient.name,
+            appointment.doctor.user.name,
+            appointment.hospital.name,
+            appointment.appointmentDate,
+            appointment.appointmentTime,
+            appointment.appointmentToken,
+            60, // 60 minutes before
+            cancelUrl
+          );
+          
+          await appointment.update({
+            oneHourReminderSent: true,
+            reminderSentAt: now
+          });
+          
+          console.log(`1-hour reminder sent for appointment ${appointment.id}`);
+        } catch (emailError) {
+          console.error(`Failed to send 1-hour reminder for appointment ${appointment.id}:`, emailError);
+        }
+      }
+      
+      // Send 15-minute reminder
+      if (!appointment.fifteenMinReminderSent && 
+          appointmentDateTime <= fifteenMinFromNow && 
+          appointmentDateTime > now) {
+        
+        console.log(`Sending 15-minute reminder for appointment ${appointment.id}`);
+        
+        try {
+          await emailService.sendAppointmentReminderEmail(
+            appointment.patient.email,
+            appointment.patient.name,
+            appointment.doctor.user.name,
+            appointment.hospital.name,
+            appointment.appointmentDate,
+            appointment.appointmentTime,
+            appointment.appointmentToken,
+            15, // 15 minutes before
+            cancelUrl
+          );
+          
+          await appointment.update({
+            fifteenMinReminderSent: true,
+            reminderSentAt: now
+          });
+          
+          console.log(`15-minute reminder sent for appointment ${appointment.id}`);
+        } catch (emailError) {
+          console.error(`Failed to send 15-minute reminder for appointment ${appointment.id}:`, emailError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Appointment reminder scheduler error:', error);
+  }
+});
+
 // Run every hour to check appointments that need GPS verification reminders
 cron.schedule('0 * * * *', async () => {
   try {
