@@ -18,10 +18,52 @@ const app = express();
 
 // Security middleware
 app.use(helmet());
+
+// CORS configuration to allow both localhost and IP address access
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? ['https://yourdomain.com'] 
+  : [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      // Allow any IP address on port 3000 for local development
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:3000$/,
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:3000$/,
+      /^http:\/\/172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}:3000$/
+    ];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000'],
+  origin: function (origin, callback) {
+    console.log('CORS request from origin:', origin);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (process.env.NODE_ENV === 'production') {
+      if (allowedOrigins.includes(origin)) {
+        console.log('Origin allowed (production):', origin);
+        return callback(null, true);
+      }
+    } else {
+      // In development, check against patterns and strings
+      const isAllowed = allowedOrigins.some(allowed => {
+        if (typeof allowed === 'string') {
+          return allowed === origin;
+        } else if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return false;
+      });
+      
+      if (isAllowed) {
+        console.log('Origin allowed (development):', origin);
+        return callback(null, true);
+      }
+    }
+    
+    console.log('Origin BLOCKED by CORS:', origin);
+    console.log('Allowed origins:', allowedOrigins);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -74,8 +116,11 @@ async function startServer() {
     await sequelize.sync({ force: false });
     console.log('Database synchronized.');
     
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on all interfaces at port ${PORT}`);
+      console.log(`Access via:`);
+      console.log(`- http://localhost:${PORT}`);
+      console.log(`- http://YOUR_IP_ADDRESS:${PORT}`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);

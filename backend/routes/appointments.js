@@ -95,20 +95,38 @@ router.get('/my-appointments', authMiddleware, async (req, res) => {
     const { status, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
+    console.log('Fetching appointments for user:', req.user.id, 'role:', req.user.role);
+
     let whereClause = {};
     if (req.user.role === 'patient') {
       whereClause.patientId = req.user.id;
+      console.log('Patient appointments query:', whereClause);
     } else if (req.user.role === 'doctor') {
       const doctorProfile = await Doctor.findOne({ where: { userId: req.user.id } });
+      console.log('Doctor profile found:', doctorProfile ? 'yes' : 'no');
+      
       if (!doctorProfile) {
-        return res.status(404).json({ message: 'Doctor profile not found' });
+        console.log('No doctor profile found for user:', req.user.id);
+        // Return empty appointments instead of error for doctors without profile
+        return res.json({
+          appointments: [],
+          pagination: {
+            total: 0,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            pages: 0
+          }
+        });
       }
       whereClause.doctorId = doctorProfile.id;
+      console.log('Doctor appointments query:', whereClause);
     }
 
     if (status) {
       whereClause.status = status;
     }
+
+    console.log('Final where clause:', whereClause);
 
     const appointments = await Appointment.findAndCountAll({
       where: whereClause,
@@ -128,6 +146,8 @@ router.get('/my-appointments', authMiddleware, async (req, res) => {
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
+
+    console.log('Found appointments count:', appointments.count);
 
     res.json({
       appointments: appointments.rows,

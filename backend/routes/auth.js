@@ -26,6 +26,37 @@ router.post('/register', validate(registerValidation), async (req, res) => {
       phone,
     });
 
+    // If registering as a doctor, create a basic doctor profile
+    let doctorProfile = null;
+    if (role === 'doctor') {
+      try {
+        // Get the first available hospital as default
+        const defaultHospital = await Hospital.findOne({ where: { isActive: true } });
+        
+        if (defaultHospital) {
+          doctorProfile = await Doctor.create({
+            userId: user.id,
+            hospitalId: defaultHospital.id,
+            specialization: 'General Medicine', // Default specialization
+            licenseNumber: `LIC-${Date.now()}`, // Temporary license number
+            experience: 0,
+            consultationFee: 500, // Default fee
+            availableFrom: '09:00',
+            availableTo: '17:00',
+            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            bio: `Dr. ${name} - General Medicine practitioner. Please update your profile with complete details.`,
+            isActive: true
+          });
+          console.log('Default doctor profile created for user:', user.id);
+        } else {
+          console.log('No hospitals available, doctor profile not created');
+        }
+      } catch (profileError) {
+        console.error('Error creating doctor profile:', profileError);
+        // Continue with registration even if profile creation fails
+      }
+    }
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, role: user.role },
@@ -42,6 +73,7 @@ router.post('/register', validate(registerValidation), async (req, res) => {
         email: user.email,
         role: user.role,
         phone: user.phone,
+        doctorProfile: doctorProfile || null,
       },
     });
   } catch (error) {
@@ -54,6 +86,8 @@ router.post('/register', validate(registerValidation), async (req, res) => {
 router.post('/login', validate(loginValidation), async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt for email:', email);
+    console.log('Request origin:', req.get('Origin'));
 
     // Find user
     const user = await User.findOne({ 
@@ -61,14 +95,20 @@ router.post('/login', validate(loginValidation), async (req, res) => {
     });
 
     if (!user) {
+      console.log('User not found or inactive:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+
+    console.log('User found:', { id: user.id, email: user.email, role: user.role });
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      console.log('Password mismatch for user:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+
+    console.log('Password matched for user:', email);
 
     // Load doctor profile if user is a doctor
     let doctorProfile = null;
@@ -82,6 +122,8 @@ router.post('/login', validate(loginValidation), async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('Login successful for user:', email, 'role:', user.role);
 
     res.json({
       message: 'Login successful',
@@ -150,7 +192,23 @@ router.post('/doctor-profile',
       // Check if doctor profile already exists
       const existingProfile = await Doctor.findOne({ where: { userId: req.user.id } });
       if (existingProfile) {
-        return res.status(400).json({ message: 'Doctor profile already exists' });
+        // If profile exists, update it instead of creating a new one
+        await existingProfile.update({
+          hospitalId,
+          specialization,
+          licenseNumber,
+          experience,
+          consultationFee,
+          availableFrom,
+          availableTo,
+          workingDays,
+          bio,
+        });
+
+        return res.status(200).json({
+          message: 'Doctor profile updated successfully',
+          doctorProfile: existingProfile,
+        });
       }
 
       // Create doctor profile

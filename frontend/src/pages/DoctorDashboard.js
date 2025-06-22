@@ -26,6 +26,7 @@ const DoctorDashboard = () => {
   const [pagination, setPagination] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [processingAppointments, setProcessingAppointments] = useState(new Set());
+  const [hasProfile, setHasProfile] = useState(true);
 
   useEffect(() => {
     fetchAppointments();
@@ -46,9 +47,19 @@ const DoctorDashboard = () => {
       const response = await appointmentsAPI.getMyAppointments(params);
       setAppointments(response.data.appointments);
       setPagination(response.data.pagination);
+      setHasProfile(true);
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
-      toast.error('Failed to load appointments');
+      
+      // Check if it's a 404 error indicating missing doctor profile
+      if (error.response?.status === 404 && error.response?.data?.message === 'Doctor profile not found') {
+        // Don't show error toast for missing profile, handle it in UI
+        setAppointments([]);
+        setPagination({});
+        setHasProfile(false);
+      } else {
+        toast.error('Failed to load appointments');
+      }
     } finally {
       setLoading(false);
     }
