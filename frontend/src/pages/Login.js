@@ -47,6 +47,7 @@ const Login = () => {
             <div className="text-xs text-blue-700 space-y-1">
               <div><strong>Patient:</strong> john.patient@email.com / password123</div>
               <div><strong>Doctor:</strong> dr.wilson@email.com / doctor123</div>
+              <div><strong>Admin:</strong> admin@doctorstoken.com / admin123456</div>
             </div>
           </div>
 

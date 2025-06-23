@@ -42,40 +42,68 @@ const BookAppointment = () => {
     try {
       if (searchType === 'doctor') {
         const response = await doctorsAPI.search({ query: searchQuery });
-        setDoctors(response.data.doctors);
+        // Filter out doctors with incomplete data
+        const validDoctors = (response.data.doctors || []).filter(doctor => 
+          doctor && doctor.id && doctor.user && doctor.user.name
+        );
+        setDoctors(validDoctors);
         setHospitals([]);
       } else {
         const response = await hospitalsAPI.search({ query: searchQuery });
-        setHospitals(response.data.hospitals);
+        // Filter out hospitals with incomplete data
+        const validHospitals = (response.data.hospitals || []).filter(hospital => 
+          hospital && hospital.id && hospital.name
+        );
+        setHospitals(validHospitals);
         setDoctors([]);
       }
     } catch (error) {
       console.error('Search failed:', error);
       toast.error('Search failed. Please try again.');
+      setDoctors([]);
+      setHospitals([]);
     } finally {
       setLoading(false);
     }
   };
 
   const selectDoctor = (doctor) => {
+    if (!doctor) {
+      console.error('Invalid doctor selected');
+      toast.error('Invalid doctor selection. Please try again.');
+      return;
+    }
+    
     setSelectedDoctor(doctor);
-    setSelectedHospital(doctor.hospital);
-    setSearchQuery(`Dr. ${doctor.user.name} - ${doctor.hospital.name}`);
+    setSelectedHospital(doctor.hospital || null);
+    const doctorName = doctor?.user?.name || 'Unknown Doctor';
+    const hospitalName = doctor?.hospital?.name || 'Unknown Hospital';
+    setSearchQuery(`Dr. ${doctorName} - ${hospitalName}`);
     setDoctors([]);
     setHospitals([]);
   };
 
   const selectHospital = async (hospital) => {
+    if (!hospital || !hospital.id) {
+      console.error('Invalid hospital selected');
+      toast.error('Invalid hospital selection. Please try again.');
+      return;
+    }
+
     setSelectedHospital(hospital);
     setSelectedDoctor(null);
-    setSearchQuery(hospital.name);
+    setSearchQuery(hospital.name || 'Unknown Hospital');
     setDoctors([]);
     setHospitals([]);
     
     // Fetch doctors from this hospital
     try {
       const response = await hospitalsAPI.getDoctors(hospital.id);
-      setDoctors(response.data.doctors);
+      // Filter out doctors with incomplete data
+      const validDoctors = (response.data.doctors || []).filter(doctor => 
+        doctor && doctor.id && doctor.user && doctor.user.name
+      );
+      setDoctors(validDoctors);
     } catch (error) {
       console.error('Failed to fetch hospital doctors:', error);
       toast.error('Failed to load doctors from this hospital.');
@@ -85,6 +113,17 @@ const BookAppointment = () => {
   const onSubmit = async (data) => {
     if (!selectedDoctor || !selectedHospital) {
       toast.error('Please select a doctor and hospital');
+      return;
+    }
+
+    // Additional validation for doctor and hospital data integrity
+    if (!selectedDoctor.id) {
+      toast.error('Invalid doctor selection. Please select a doctor again.');
+      return;
+    }
+
+    if (!selectedHospital.id) {
+      toast.error('Invalid hospital selection. Please select a hospital again.');
       return;
     }
 
@@ -299,12 +338,14 @@ const BookAppointment = () => {
                   <div className="flex items-start space-x-3">
                     <Stethoscope className="h-5 w-5 text-primary-600 mt-1" />
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">Dr. {doctor.user.name}</h4>
-                      <p className="text-sm text-gray-600">{doctor.specialization}</p>
+                      <h4 className="font-medium text-gray-900">
+                        Dr. {doctor?.user?.name || 'Unknown Doctor'}
+                      </h4>
+                      <p className="text-sm text-gray-600">{doctor?.specialization || 'Specialization not specified'}</p>
                       <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
                         <span className="flex items-center space-x-1">
                           <MapPin className="h-3 w-3" />
-                          <span>{doctor.hospital.name}</span>
+                          <span>{doctor?.hospital?.name || 'Hospital not specified'}</span>
                         </span>
                         <span className="flex items-center space-x-1">
                           <Clock className="h-3 w-3" />
@@ -353,9 +394,15 @@ const BookAppointment = () => {
               <div className="flex items-center space-x-3">
                 <Stethoscope className="h-5 w-5 text-primary-600" />
                 <div>
-                  <p className="font-medium text-primary-900">Dr. {selectedDoctor.user.name}</p>
-                  <p className="text-sm text-primary-700">{selectedDoctor.specialization}</p>
-                  <p className="text-sm text-primary-600">{selectedHospital.name}</p>
+                  <p className="font-medium text-primary-900">
+                    Dr. {selectedDoctor?.user?.name || 'Unknown Doctor'}
+                  </p>
+                  <p className="text-sm text-primary-700">
+                    {selectedDoctor?.specialization || 'Specialization not specified'}
+                  </p>
+                  <p className="text-sm text-primary-600">
+                    {selectedHospital?.name || 'Hospital not specified'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -478,13 +525,13 @@ const BookAppointment = () => {
                   <div className="flex items-center space-x-2">
                     <Stethoscope className="h-4 w-4 text-blue-600" />
                     <span className="text-blue-800">
-                      <strong>Doctor:</strong> Dr. {selectedDoctor.user.name} ({selectedDoctor.specialization})
+                      <strong>Doctor:</strong> Dr. {selectedDoctor?.user?.name || 'Unknown Doctor'} ({selectedDoctor?.specialization || 'Specialization not specified'})
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <MapPin className="h-4 w-4 text-blue-600" />
                     <span className="text-blue-800">
-                      <strong>Hospital:</strong> {selectedHospital.name}
+                      <strong>Hospital:</strong> {selectedHospital?.name || 'Hospital not specified'}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">

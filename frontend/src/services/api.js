@@ -94,4 +94,23 @@ export const gpsAPI = {
   getStatus: (appointmentId) => api.get(`/gps/status/${appointmentId}`),
 };
 
+// Admin API
+export const adminAPI = {
+  // Dashboard
+  getDashboard: () => api.get('/admin/dashboard'),
+  getAnalytics: (params) => api.get('/admin/analytics', { params }),
+  
+  // User Management
+  getUsers: (params) => api.get('/admin/users', { params }),
+  getUserById: (id) => api.get(`/admin/users/${id}`),
+  updateUserStatus: (id, statusData) => api.patch(`/admin/users/${id}/status`, statusData),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  
+  // Doctor Management
+  getDoctors: (params) => api.get('/admin/doctors', { params }),
+  
+  // Appointment Management
+  getAppointments: (params) => api.get('/admin/appointments', { params }),
+};
+
 export default api;

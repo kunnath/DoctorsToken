@@ -10,6 +10,10 @@ import BookAppointment from './pages/BookAppointment';
 import MyAppointments from './pages/MyAppointments';
 import DoctorDashboard from './pages/DoctorDashboard';
 import GPSVerification from './pages/GPSVerification';
+import CancelAppointment from './pages/CancelAppointment';
+import AdminDashboard from './pages/AdminDashboard';
+import UserManagement from './pages/UserManagement';
+import AdminAnalytics from './pages/AdminAnalytics';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, role }) => {
@@ -124,6 +128,38 @@ function App() {
                     <DoctorDashboard />
                   </ProtectedRoute>
                 }
+              />
+              
+              {/* Admin Routes */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute role="admin">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute role="admin">
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <ProtectedRoute role="admin">
+                    <AdminAnalytics />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Public Appointment Cancellation */}
+              <Route
+                path="/cancel-appointment/:appointmentId"
+                element={<CancelAppointment />}
               />
               
               {/* Catch all */}

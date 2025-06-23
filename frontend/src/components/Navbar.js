@@ -90,6 +90,41 @@ const Navbar = () => {
                   </Link>
                 </>
               )}
+
+              {user.role === 'admin' && (
+                <>
+                  <Link
+                    to="/admin/dashboard"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/admin/dashboard')
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Admin Dashboard
+                  </Link>
+                  <Link
+                    to="/admin/users"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/admin/users')
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    User Management
+                  </Link>
+                  <Link
+                    to="/admin/analytics"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/admin/analytics')
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Analytics
+                  </Link>
+                </>
+              )}
             </div>
           )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { appointmentsAPI } from '../services/api';
 import { Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
@@ -10,10 +10,6 @@ const Dashboard = () => {
   const [recentAppointments, setRecentAppointments] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
 
   const fetchDashboardData = async () => {
     try {
@@ -36,6 +32,15 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Redirect admin users to admin dashboard
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
 
   const getStatusIcon = (status) => {
     switch (status) {
