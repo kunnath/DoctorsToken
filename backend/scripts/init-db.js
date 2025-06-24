@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 const { sequelize } = require('../config/database');
 const { seedData } = require('../seeds/seed');
 

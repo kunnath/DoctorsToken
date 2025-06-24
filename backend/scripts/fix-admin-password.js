@@ -1,10 +1,17 @@
+// Load environment variables
+require('dotenv').config();
+
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
 
 async function fixAdminPassword() {
   try {
-    console.log('Fixing admin password definitively...');
+    console.log('🔧 Fixing admin user password...');
     
+    const email = 'admin@doctorstoken.com';
+    const newPassword = 'admin123456';
+
+    // Find admin user
     const admin = await User.findOne({ 
       where: { email: 'admin@doctorstoken.com' }
     });
