@@ -2,6 +2,28 @@
 
 A comprehensive full-stack appointment booking system with GPS verification for healthcare providers and patients. This modern healthcare management platform streamlines the appointment booking process with real-time location verification and automated workflows.
 
+## 🌟 Latest Updates
+
+### 🚀 New Branch: Database Setup Improvements
+We've created a new branch `feature/database-setup-improvements` with major enhancements:
+
+- **🔧 Robust Database Setup**: Automatic PostgreSQL configuration for macOS and Linux
+- **🔐 Enhanced Authentication**: Improved admin user management and login system  
+- **🛠️ Developer Tools**: Comprehensive scripts for setup, diagnostics, and troubleshooting
+- **📱 Community Ready**: Easy one-command setup for community contributors
+
+**Quick Start with New Branch:**
+```bash
+git clone https://github.com/kunnath/DoctorsToken.git
+cd DoctorsToken
+git checkout feature/database-setup-improvements
+cd backend && node scripts/setup-database.js
+```
+
+👉 **[See Full Branch Documentation](./BRANCH_README.md)** for detailed setup instructions and troubleshooting.
+
+---
+
 ## � Demo Videos
 
 ### 📱 Patient Appointment Flow Demo
